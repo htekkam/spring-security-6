@@ -1,6 +1,7 @@
 package com.techie.spring.security.service;
 
 import com.techie.spring.security.entity.User;
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
@@ -8,11 +9,10 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
-import java.security.Key;
-import java.util.Base64;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Function;
 
 @Service
 public class JwtService {
@@ -43,15 +43,41 @@ public class JwtService {
     }
 
     public String getSecretKey(){
-        secretKey = "w7WzGuuHz50k6sKAq3GkaLTWEdaEok/zbFongEbmRoM=";
+        //secretKey = "tU1cKc4ViYNHGckgrGkEPIrSXFSj5OIR6xMA275EB34=";
+        secretKey = "RqxPOuVfHoBA8Uq40MhJvfY6qEHOOWWvg6N9W9vt23s=";
         return secretKey;
     }
 
-    public String extractUserName() {
-        return "";
+    public String extractUserName(String jwtToken) {
+        return extractClaims(jwtToken, Claims::getSubject);
+    }
+
+    private <T> T extractClaims(String jwtToken, Function<Claims,T> claimResolver) {
+        Claims claims = extractClaims(jwtToken);
+        return  claimResolver.apply(claims);
+    }
+
+    private Claims extractClaims(String jwtToken) {
+        return Jwts
+                .parser()
+                .verifyWith(generateKey())
+                .build()
+                .parseSignedClaims(jwtToken)
+                .getPayload();
+    }
+
+    private Date extractExpiration(String jwtToken){
+        return extractClaims(jwtToken, Claims::getExpiration);
+
     }
 
     public boolean isValidToken(String jwtToken, UserDetails userDetails) {
-        return true;
+        final String userName = extractUserName(jwtToken);
+        return (userName.equals(userDetails.getUsername()) && !isTokenExpired(jwtToken));
     }
+
+    private boolean isTokenExpired(String jwtToken) {
+        return extractExpiration(jwtToken).before(new Date());
+    }
+
 }
